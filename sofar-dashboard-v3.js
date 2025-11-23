@@ -1,28 +1,35 @@
 // Sofar Solar Dashboard v3.1 - Opravená DOM manipulace
 // Kompatibilní s ESPHome web_server v2 Lit framework
 
+// ... (Zbytek kódu, který jste vložil) ...
+
 (function() {
   'use strict';
   
   let attempts = 0;
   const maxAttempts = 50;
-  // Zvýšení zpoždění pro jistotu
-  const initialDelay = 500; // Zvýšeno z 300ms
-  const retryInterval = 150; // Zvýšeno ze 100ms
+  
+  // !!! KRITICKÁ ZMĚNA 1: ZVYŠTE ZPOŽDĚNÍ PRO JISTOTU !!!
+  const initialDelay = 1500; // ZVÝŠENO na 1500ms (1.5 sekundy)
+  const retryInterval = 300;  // ZVÝŠENO na 300ms
 
   function tryInit() {
     attempts++;
     
     // Čekej až se načte ESPHome UI (tabulka nebo hlavní aplikace)
+    // Záměrně hledáme buď esphome-app nebo hlavní tabulku, které označují, že Lit dokončil render
     const table = document.querySelector('table');
     const esphomeApp = document.querySelector('esphome-app');
     
     if (table || esphomeApp || attempts > maxAttempts) {
-      setTimeout(applyDashboard, initialDelay);
+        // !!! KRITICKÁ ZMĚNA 2: PŘIDEJTE DODATEČNÉ ZPOŽDĚNÍ ZDE
+        // Tím zajistíme, že se náš kód spustí až po Lit frameworku.
+        setTimeout(applyDashboard, initialDelay); 
     } else {
       setTimeout(tryInit, retryInterval);
     }
   }
+// ... (Zbytek kódu beze změny) ...
 
   function applyDashboard() {
     // === KROK 1: Přidej custom CSS ===
