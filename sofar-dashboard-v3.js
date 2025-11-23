@@ -1,27 +1,31 @@
-// Sofar Solar Dashboard v3.0
+// Sofar Solar Dashboard v3.1 - Opravená DOM manipulace
 // Kompatibilní s ESPHome web_server v2 Lit framework
+
 (function() {
   'use strict';
   
   let attempts = 0;
   const maxAttempts = 50;
+  // Zvýšení zpoždění pro jistotu
+  const initialDelay = 500; // Zvýšeno z 300ms
+  const retryInterval = 150; // Zvýšeno ze 100ms
 
   function tryInit() {
     attempts++;
     
-    // Čekej až se načte ESPHome UI
+    // Čekej až se načte ESPHome UI (tabulka nebo hlavní aplikace)
     const table = document.querySelector('table');
     const esphomeApp = document.querySelector('esphome-app');
     
     if (table || esphomeApp || attempts > maxAttempts) {
-      setTimeout(applyDashboard, 300);
+      setTimeout(applyDashboard, initialDelay);
     } else {
-      setTimeout(tryInit, 100);
+      setTimeout(tryInit, retryInterval);
     }
   }
 
   function applyDashboard() {
-    // Přidej custom CSS
+    // === KROK 1: Přidej custom CSS ===
     const style = document.createElement('style');
     style.textContent = `
       /* Základní styly */
@@ -159,25 +163,34 @@
     `;
     document.head.appendChild(style);
 
-    // Najdi nebo vytvoř wrapper
+    // === KROK 2: VYČIŠTĚNÍ PŮVODNÍHO OBSAHU a Vytvoření wrapperu ===
+    
+    // Ulož původní obsah (ESPHome app nebo jen tabulka)
+    const esphomeApp = document.querySelector('esphome-app');
+    const table = document.querySelector('table');
+    let originalContent = esphomeApp || table;
+    
     let wrapper = document.querySelector('.dashboard-wrapper');
     if (!wrapper) {
-      wrapper = document.createElement('div');
-      wrapper.className = 'dashboard-wrapper';
-      
-      // Přesuň vše do wrapperu
-      while (document.body.firstChild) {
-        wrapper.appendChild(document.body.firstChild);
-      }
-      document.body.appendChild(wrapper);
+        wrapper = document.createElement('div');
+        wrapper.className = 'dashboard-wrapper';
+        
+        // !!! KRITICKÁ ZMĚNA: Agresivní přesun obsahu nahradíme jednodušším appendováním po smazání body.
+        // Tím se sníží riziko kolize s Lit frameworkem, který se stále snaží renderovat.
+        // Nejprve smažeme VŠECHEN obsah body.
+        document.body.innerHTML = ''; 
+        // A přidáme nový wrapper, do kterého se vše bude vkládat.
+        document.body.appendChild(wrapper); 
     }
+
+    // === KROK 3: Sestavení Dashboardu ===
 
     // Přidej header
     if (!document.querySelector('.dashboard-header')) {
       const header = document.createElement('div');
       header.className = 'dashboard-header';
       header.innerHTML = `<h1>☀️ Sofar Solar Dashboard</h1>`;
-      wrapper.insertBefore(header, wrapper.firstChild);
+      wrapper.appendChild(header); // Přidáváme přímo do wrapperu
     }
 
     // Přidej summary karty
@@ -206,10 +219,7 @@
           <div class="summary-label">Spotřeba</div>
         </div>
       `;
-      const headerEl = document.querySelector('.dashboard-header');
-      if (headerEl) {
-        headerEl.after(summary);
-      }
+      wrapper.appendChild(summary); // Přidáváme přímo do wrapperu
     }
 
     // Přidej taby
@@ -220,29 +230,26 @@
         <button class="tab-btn active" data-tab="customer">🏠 Zákazník</button>
         <button class="tab-btn" data-tab="service">🔧 Servis</button>
       `;
-      const summaryEl = document.querySelector('.summary-cards');
-      if (summaryEl) {
-        summaryEl.after(tabs);
+      wrapper.appendChild(tabs); // Přidáváme přímo do wrapperu
 
-        // Event listeners pro taby
-        tabs.querySelectorAll('.tab-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            const tabId = btn.getAttribute('data-tab');
-            const panel = document.getElementById('panel-' + tabId);
-            if (panel) panel.classList.add('active');
-          });
+      // Event listeners pro taby
+      tabs.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          const tabId = btn.getAttribute('data-tab');
+          const panel = document.getElementById('panel-' + tabId);
+          if (panel) panel.classList.add('active');
         });
-      }
+      });
     }
 
-    // Wrap existující tabulku do service panelu
-    const table = document.querySelector('table');
-    if (table && !document.querySelector('.tab-panel')) {
-      // Customer panel (prázdný zatím - data se načtou přes EventSource)
+    // Vytvoř tab panely
+    if (!document.querySelector('.tab-panel')) {
+      
+      // Customer panel
       const customerPanel = document.createElement('div');
       customerPanel.id = 'panel-customer';
       customerPanel.className = 'tab-panel active';
@@ -295,11 +302,13 @@
       servicePanel.id = 'panel-service';
       servicePanel.className = 'tab-panel';
       
-      const tabsEl = document.querySelector('.tab-buttons');
-      if (tabsEl) {
-        tabsEl.after(customerPanel);
-        customerPanel.after(servicePanel);
-        servicePanel.appendChild(table);
+      // Přidáme panely do wrapperu
+      wrapper.appendChild(customerPanel);
+      wrapper.appendChild(servicePanel);
+      
+      // Vložíme původní obsah ESPHome (pokud existuje) do Service panelu
+      if (originalContent) {
+          servicePanel.appendChild(originalContent);
       }
     }
 
@@ -307,7 +316,7 @@
     if (!document.querySelector('.dashboard-footer')) {
       const footer = document.createElement('div');
       footer.className = 'dashboard-footer';
-      footer.innerHTML = `Aktualizace: <span id="upd-time">--</span> | Sofar Solar Dashboard v3.0`;
+      footer.innerHTML = `Aktualizace: <span id="upd-time">--</span> | Sofar Solar Dashboard v3.1 (Opraveno pro Lit-kompatibilitu)`;
       wrapper.appendChild(footer);
     }
 
@@ -320,11 +329,12 @@
       if (el) el.textContent = new Date().toLocaleTimeString('cs-CZ');
     }, 1000);
 
-    console.log('Sofar Dashboard v3.0 loaded successfully');
+    console.log('Sofar Dashboard v3.1 loaded successfully (Lit compatible)');
   }
 
   function connectEvents() {
     try {
+      // Použijeme lokální EventSource
       const source = new EventSource('/events');
       
       source.addEventListener('state', (e) => {
@@ -335,10 +345,13 @@
       });
 
       source.onerror = () => {
+        // Opakovaný pokus o připojení
         setTimeout(connectEvents, 5000);
       };
     } catch(err) {
       console.log('EventSource error:', err);
+      // Opakovaný pokus o připojení i v případě chyby EventSource
+      setTimeout(connectEvents, 5000);
     }
   }
 
@@ -392,13 +405,15 @@
       setText('card-grid', Math.abs(Math.round(v)) + ' W');
       const status = document.getElementById('card-grid-status');
       if (status) {
+        // Grid Výkon je v ESPHome nastaven tak, že kladná hodnota je ODBĚR (grid > 0)
+        // a záporná hodnota je DODÁVKA (grid < 0)
         if (v > 50) status.textContent = '⬅️ Odběr ze sítě';
         else if (v < -50) status.textContent = '➡️ Dodávka do sítě';
         else status.textContent = '⚖️ Vyrovnáno';
       }
     }
     
-    // Load
+    // Load (Spotřeba domu)
     if (id === 'sensor-spotreba_domu') {
       setText('sum-load', Math.abs(Math.round(v)) + ' W');
       setText('card-load', Math.abs(Math.round(v)) + ' W');
