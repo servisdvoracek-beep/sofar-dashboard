@@ -1,182 +1,160 @@
-// Sofar Dashboard v3.0
-// Kompletní moderní dashboard pro Sofar (ESPHome + HA)
-// Sekce: PowerFlow, Koncový Uživatel, Servisní Módy
-// Autor: ChatGPT – generováno na míru
-
-// ============================
-// KONFIGURACE
-// ============================
-const CONFIG = {
-  updateInterval: 1000,
-  eventSourceURL: "/events",
-  enableAnimations: true,
-  debug: false,
-};
-
-// ============================
-// INTERNÍ STAV
-// ============================
-const state = {
-  pv1: { v: 0, a: 0, w: 0 },
-  pv2: { v: 0, a: 0, w: 0 },
-  pv_total: 0,
-  battery: { soc: 0, v: 0, w: 0, mode: "idle" },
-  house: { w: 0 },
-  grid: { w: 0, direction: "import" },
-};
-
-// ============================
-// HELPER FUNKCE
-// ============================
-function $(id) {
-  return document.getElementById(id);
-}
-
-function setText(id, value, unit = "") {
-  const el = $(id);
-  if (el) el.textContent = `${value}${unit}`;
-}
-
-function logDebug(...msg) {
-  if (CONFIG.debug) console.log("DEBUG:", ...msg);
-}
-
-// ============================
-// PRŮBĚŽNÁ AKTUALIZACE UI
-// ============================
-function updateUI() {
-  setText("pv1_v", state.pv1.v, " V");
-  setText("pv1_a", state.pv1.a, " A");
-  setText("pv1_w", state.pv1.w, " W");
-
-  setText("pv2_v", state.pv2.v, " V");
-  setText("pv2_a", state.pv2.a, " A");
-  setText("pv2_w", state.pv2.w, " W");
-
-  setText("pv_total", state.pv_total, " W");
-
-  setText("bat_soc", state.battery.soc, " %");
-  setText("bat_v", state.battery.v, " V");
-  setText("bat_w", state.battery.w, " W");
-
-  setText("house_w", state.house.w, " W");
-
-  setText("grid_w", state.grid.w, " W");
-  $("grid_dir").textContent = state.grid.direction === "import" ? "Import" : "Export";
-
-  updateFlowArrows();
-}
-
-// ============================
-// POWERFLOW – ANIMOVANÉ ŠIPKY
-// ============================
-function updateFlowArrows() {
-  const pv = state.pv_total;
-  const bat = state.battery.w;
-  const grid = state.grid.w;
-  const house = state.house.w;
-
-  // PV → DŮM / BAT / GRID
-  if (pv > 50) $("arrow_pv").classList.add("flow-on");
-  else $("arrow_pv").classList.remove("flow-on");
-
-  // BATTERY
-  if (bat > 20) {
-    $("arrow_bat").classList.add("flow-discharge");
-    $("arrow_bat").classList.remove("flow-charge");
-  } else if (bat < -20) {
-    $("arrow_bat").classList.add("flow-charge");
-    $("arrow_bat").classList.remove("flow-discharge");
-  } else {
-    $("arrow_bat").classList.remove("flow-charge", "flow-discharge");
-  }
-
-  // GRID
-  if (grid > 50) {
-    $("arrow_grid").classList.add("flow-import");
-    $("arrow_grid").classList.remove("flow-export");
-  } else if (grid < -50) {
-    $("arrow_grid").classList.add("flow-export");
-    $("arrow_grid").classList.remove("flow-import");
-  } else {
-    $("arrow_grid").classList.remove("flow-import", "flow-export");
-  }
-}
-
-// ============================
-// SEKCE KONCOVÝ UŽIVATEL
-// ============================
-function updateUserSection() {
-  $("user_pv_today").textContent = `${state.pv_total} W / live`;
-  $("user_house_now").textContent = `${state.house.w} W`;
-  $("user_soc").textContent = `${state.battery.soc} %`;
-}
-
-// ============================
-// SEKCE SERVIS – tabulky parametrů
-// ============================
-function updateServiceSection() {
-  $("srv_bat_voltage").textContent = `${state.battery.v} V`;
-  $("srv_pv1_v").textContent = `${state.pv1.v} V`;
-  $("srv_pv2_v").textContent = `${state.pv2.v} V`;
-  $("srv_grid_p").textContent = `${state.grid.w} W`;
-  $("srv_house_p").textContent = `${state.house.w} W`;
-}
-
-// ============================
-// EVENTSOURCE – LIVE DATA
-// ============================
-function startEventSource() {
-  const es = new EventSource(CONFIG.eventSourceURL);
-
-  es.onmessage = (event) => {
-    try {
-      const d = JSON.parse(event.data);
-
-      if (!d.id || d.value === undefined) return;
-
-      // mapování dat
-      switch (d.id) {
-        case "pv1_voltage": state.pv1.v = d.value; break;
-        case "pv1_current": state.pv1.a = d.value; break;
-        case "pv1_power": state.pv1.w = d.value; break;
-
-        case "pv2_voltage": state.pv2.v = d.value; break;
-        case "pv2_current": state.pv2.a = d.value; break;
-        case "pv2_power": state.pv2.w = d.value; break;
-
-        case "pv_power_total": state.pv_total = d.value; break;
-
-        case "battery_soc": state.battery.soc = d.value; break;
-        case "battery_voltage": state.battery.v = d.value; break;
-        case "battery_power": state.battery.w = d.value; break;
-
-        case "house_load_power": state.house.w = d.value; break;
-
-        case "grid_power":
-          state.grid.w = d.value;
-          state.grid.direction = d.value >= 0 ? "import" : "export";
-          break;
-      }
-
-      updateUI();
-      updateUserSection();
-      updateServiceSection();
-    } catch (e) {
-      console.error("Chyba EventSource:", e);
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sofar Solar Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
     }
-  };
+    header {
+      background: #1e73be;
+      color: white;
+      padding: 10px 20px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    .container {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-gap: 20px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    }
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .value {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .unit {
+      opacity: 0.6;
+      font-size: 14px;
+    }
 
-  es.onerror = () => {
-    console.warn("EventSource chyba – restart za 3s");
-    setTimeout(startEventSource, 3000);
-  };
+    /* POWER FLOW */
+    .flow-container {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 10px 0;
+    }
+    .flow-box {
+      text-align: center;
+      width: 140px;
+    }
+    .arrow {
+      font-size: 32px;
+      transition: 0.3s;
+      opacity: 0.4;
+    }
+    .arrow.active {
+      opacity: 1;
+      color: #1e73be;
+    }
+  </style>
+</head>
+<body>
+  <header>Sofar Solar Dashboard</header>
+
+  <div class="container">
+
+    <div class="card">
+      <div class="title">Výkon FV</div>
+      <div class="value" id="pv_power">0 <span class="unit">W</span></div>
+    </div>
+
+    <div class="card">
+      <div class="title">Spotřeba domu</div>
+      <div class="value" id="load_power">0 <span class="unit">W</span></div>
+    </div>
+
+    <div class="card">
+      <div class="title">Baterie – SOC</div>
+      <div class="value" id="soc">0 <span class="unit">%</span></div>
+    </div>
+
+    <div class="card">
+      <div class="title">Stav měniče</div>
+      <div class="value" id="inverter_status">—</div>
+    </div>
+
+  </div>
+
+  <!-- POWER FLOW -->
+  <div class="card" style="margin: 20px;">
+    <div class="title">Tok energie</div>
+
+    <div class="flow-container">
+      <div class="flow-box">PV</div>
+      <div id="arrow_pv_load" class="arrow">➡️</div>
+      <div class="flow-box">Dům</div>
+    </div>
+
+    <div class="flow-container">
+      <div class="flow-box">Baterie</div>
+      <div id="arrow_batt_load" class="arrow">⬅️➡️</div>
+      <div class="flow-box">Dům</div>
+    </div>
+
+  </div>
+
+<script>
+// ============================
+// LIVE DATA STREAM (EventSource)
+// ============================
+
+const es = new EventSource('/events');
+
+es.onmessage = function (event) {
+  let data;
+  try {
+    data = JSON.parse(event.data);
+  } catch (e) {
+    return;
+  }
+
+  if (data.id && data.value !== undefined) updateValue(data.id, data.value);
+};
+
+function updateValue(id, val) {
+  if (id === "sensor.pv_power") {
+    pv_power.textContent = val + " W";
+    arrow_pv_load.classList.toggle("active", val > 50);
+  }
+
+  if (id === "sensor.load_power") {
+    load_power.textContent = val + " W";
+  }
+
+  if (id === "sensor.soc") {
+    soc.textContent = val + " %";
+  }
+
+  if (id === "sensor.inverter_status") {
+    inverter_status.textContent = val;
+  }
+
+  // Baterie → Dům šipka
+  if (id === "sensor.battery_power") {
+    arrow_batt_load.classList.toggle("active", Math.abs(val) > 50);
+  }
 }
+</script>
+</body>
+</html>
 
-// ============================
-// INIT
-// ============================
-window.addEventListener("DOMContentLoaded", () => {
-  startEventSource();
-  setInterval(updateUI, CONFIG.updateInterval);
 });
