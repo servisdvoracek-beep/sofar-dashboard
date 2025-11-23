@@ -1,32 +1,17 @@
-// Sofar Solar Dashboard v3.2 - AGRESIVNÍ START
-// Odstraněna veškerá zpoždění pro eliminaci chyb načítání Lit frameworku.
+// Sofar Solar Dashboard v3.3 - Okamžitý start
+// Eliminace veškeré logiky čekání a zpoždění.
 
 (function() {
   'use strict';
   
-  // Funkce, která sestaví dashboard
-  function applyDashboard() {
-    
-    // === KRITICKÁ ZMĚNA: VYČIŠTĚNÍ PŮVODNÍHO OBSAHU ===
-    // Děláme to hned, bez čekání. Pokud se stránka objeví, znamená to, že funguje.
-    const esphomeApp = document.querySelector('esphome-app');
-    const table = document.querySelector('table');
-    let originalContent = esphomeApp || table;
-    
-    let wrapper = document.querySelector('.dashboard-wrapper');
-    if (!wrapper) {
-      wrapper = document.createElement('div');
-      wrapper.className = 'dashboard-wrapper';
-      
-      // Nejprve smažeme VŠECHEN obsah body.
-      document.body.innerHTML = ''; 
-      // A přidáme nový wrapper, do kterého se vše bude vkládat.
-      document.body.appendChild(wrapper); 
-    }
+  // Zbytek kódů pro tryInit() je smazán
 
+  function applyDashboard() {
+    console.log('Sofar Dashboard v3.3: START sestavování DOM.');
+    
     // === KROK 1: Přidej custom CSS ===
-    // ... (zbytek CSS kódu je stejný) ...
     const style = document.createElement('style');
+    // ... (Zde je vaše CSS beze změny) ...
     style.textContent = `
       /* Základní styly */
       body, html {
@@ -163,8 +148,25 @@
     `;
     document.head.appendChild(style);
 
-    // === KROK 3: Sestavení Dashboardu ===
+    // === KROK 2: VYČIŠTĚNÍ PŮVODNÍHO OBSAHU a Vytvoření wrapperu ===
+    
+    // Ulož původní obsah (ESPHome app nebo jen tabulka)
+    const esphomeApp = document.querySelector('esphome-app');
+    const table = document.querySelector('table');
+    let originalContent = esphomeApp || table;
+    
+    let wrapper = document.querySelector('.dashboard-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'dashboard-wrapper';
+      
+      // KRITICKÝ KROK
+      document.body.innerHTML = ''; 
+      document.body.appendChild(wrapper); 
+    }
 
+    // === KROK 3: Sestavení Dashboardu ===
+    // ... (Zde následuje kód pro sestavení HTML, který je stejný jako ve verzi 3.1) ...
     // Přidej header
     if (!document.querySelector('.dashboard-header')) {
       const header = document.createElement('div');
@@ -296,7 +298,7 @@
     if (!document.querySelector('.dashboard-footer')) {
       const footer = document.createElement('div');
       footer.className = 'dashboard-footer';
-      footer.innerHTML = `Aktualizace: <span id="upd-time">--</span> | Sofar Solar Dashboard v3.2 (Agresivní start)`;
+      footer.innerHTML = `Aktualizace: <span id="upd-time">--</span> | Sofar Solar Dashboard v3.3 (Okamžitý start)`;
       wrapper.appendChild(footer);
     }
 
@@ -309,13 +311,16 @@
       if (el) el.textContent = new Date().toLocaleTimeString('cs-CZ');
     }, 1000);
 
-    console.log('Sofar Dashboard v3.2 loaded successfully (Aggressive)');
+    console.log('Sofar Dashboard v3.3 loaded successfully.');
   }
 
+  // --- Ostatní funkce (connectEvents, updateValues, setText) zůstávají stejné ---
+
   function connectEvents() {
-    // ... (zbytek connectEvents je stejný) ...
     try {
+      // Použijeme lokální EventSource
       const source = new EventSource('/events');
+      
       source.addEventListener('state', (e) => {
         try {
           const d = JSON.parse(e.data);
@@ -324,10 +329,12 @@
       });
 
       source.onerror = () => {
+        // Opakovaný pokus o připojení
         setTimeout(connectEvents, 5000);
       };
     } catch(err) {
       console.log('EventSource error:', err);
+      // Opakovaný pokus o připojení i v případě chyby EventSource
       setTimeout(connectEvents, 5000);
     }
   }
@@ -335,7 +342,6 @@
   const data = {};
   
   function updateValues(id, value) {
-    // ... (zbytek updateValues je stejný) ...
     if (value === undefined || value === null) return;
     const v = parseFloat(value);
     if (isNaN(v)) return;
@@ -402,8 +408,8 @@
     const el = document.getElementById(id);
     if (el) el.textContent = text;
   }
-
-  // Start se spustí HNED po načtení DOM
+  
+  // Start - Hned po načtení dokumentu
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyDashboard);
   } else {
