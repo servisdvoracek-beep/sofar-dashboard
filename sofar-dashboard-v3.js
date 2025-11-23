@@ -1,38 +1,31 @@
-// Sofar Solar Dashboard v3.1 - Opravená DOM manipulace
-// Kompatibilní s ESPHome web_server v2 Lit framework
-
-// ... (Zbytek kódu, který jste vložil) ...
+// Sofar Solar Dashboard v3.2 - AGRESIVNÍ START
+// Odstraněna veškerá zpoždění pro eliminaci chyb načítání Lit frameworku.
 
 (function() {
   'use strict';
   
-  let attempts = 0;
-  const maxAttempts = 50;
-  
-  // !!! KRITICKÁ ZMĚNA 1: ZVYŠTE ZPOŽDĚNÍ PRO JISTOTU !!!
-  const initialDelay = 1500; // ZVÝŠENO na 1500ms (1.5 sekundy)
-  const retryInterval = 300;  // ZVÝŠENO na 300ms
-
-  function tryInit() {
-    attempts++;
-    
-    // Čekej až se načte ESPHome UI (tabulka nebo hlavní aplikace)
-    // Záměrně hledáme buď esphome-app nebo hlavní tabulku, které označují, že Lit dokončil render
-    const table = document.querySelector('table');
-    const esphomeApp = document.querySelector('esphome-app');
-    
-    if (table || esphomeApp || attempts > maxAttempts) {
-        // !!! KRITICKÁ ZMĚNA 2: PŘIDEJTE DODATEČNÉ ZPOŽDĚNÍ ZDE
-        // Tím zajistíme, že se náš kód spustí až po Lit frameworku.
-        setTimeout(applyDashboard, initialDelay); 
-    } else {
-      setTimeout(tryInit, retryInterval);
-    }
-  }
-// ... (Zbytek kódu beze změny) ...
-
+  // Funkce, která sestaví dashboard
   function applyDashboard() {
+    
+    // === KRITICKÁ ZMĚNA: VYČIŠTĚNÍ PŮVODNÍHO OBSAHU ===
+    // Děláme to hned, bez čekání. Pokud se stránka objeví, znamená to, že funguje.
+    const esphomeApp = document.querySelector('esphome-app');
+    const table = document.querySelector('table');
+    let originalContent = esphomeApp || table;
+    
+    let wrapper = document.querySelector('.dashboard-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'dashboard-wrapper';
+      
+      // Nejprve smažeme VŠECHEN obsah body.
+      document.body.innerHTML = ''; 
+      // A přidáme nový wrapper, do kterého se vše bude vkládat.
+      document.body.appendChild(wrapper); 
+    }
+
     // === KROK 1: Přidej custom CSS ===
+    // ... (zbytek CSS kódu je stejný) ...
     const style = document.createElement('style');
     style.textContent = `
       /* Základní styly */
@@ -170,26 +163,6 @@
     `;
     document.head.appendChild(style);
 
-    // === KROK 2: VYČIŠTĚNÍ PŮVODNÍHO OBSAHU a Vytvoření wrapperu ===
-    
-    // Ulož původní obsah (ESPHome app nebo jen tabulka)
-    const esphomeApp = document.querySelector('esphome-app');
-    const table = document.querySelector('table');
-    let originalContent = esphomeApp || table;
-    
-    let wrapper = document.querySelector('.dashboard-wrapper');
-    if (!wrapper) {
-        wrapper = document.createElement('div');
-        wrapper.className = 'dashboard-wrapper';
-        
-        // !!! KRITICKÁ ZMĚNA: Agresivní přesun obsahu nahradíme jednodušším appendováním po smazání body.
-        // Tím se sníží riziko kolize s Lit frameworkem, který se stále snaží renderovat.
-        // Nejprve smažeme VŠECHEN obsah body.
-        document.body.innerHTML = ''; 
-        // A přidáme nový wrapper, do kterého se vše bude vkládat.
-        document.body.appendChild(wrapper); 
-    }
-
     // === KROK 3: Sestavení Dashboardu ===
 
     // Přidej header
@@ -197,7 +170,7 @@
       const header = document.createElement('div');
       header.className = 'dashboard-header';
       header.innerHTML = `<h1>☀️ Sofar Solar Dashboard</h1>`;
-      wrapper.appendChild(header); // Přidáváme přímo do wrapperu
+      wrapper.appendChild(header); 
     }
 
     // Přidej summary karty
@@ -226,7 +199,7 @@
           <div class="summary-label">Spotřeba</div>
         </div>
       `;
-      wrapper.appendChild(summary); // Přidáváme přímo do wrapperu
+      wrapper.appendChild(summary); 
     }
 
     // Přidej taby
@@ -237,7 +210,7 @@
         <button class="tab-btn active" data-tab="customer">🏠 Zákazník</button>
         <button class="tab-btn" data-tab="service">🔧 Servis</button>
       `;
-      wrapper.appendChild(tabs); // Přidáváme přímo do wrapperu
+      wrapper.appendChild(tabs); 
 
       // Event listeners pro taby
       tabs.querySelectorAll('.tab-btn').forEach(btn => {
@@ -323,7 +296,7 @@
     if (!document.querySelector('.dashboard-footer')) {
       const footer = document.createElement('div');
       footer.className = 'dashboard-footer';
-      footer.innerHTML = `Aktualizace: <span id="upd-time">--</span> | Sofar Solar Dashboard v3.1 (Opraveno pro Lit-kompatibilitu)`;
+      footer.innerHTML = `Aktualizace: <span id="upd-time">--</span> | Sofar Solar Dashboard v3.2 (Agresivní start)`;
       wrapper.appendChild(footer);
     }
 
@@ -336,14 +309,13 @@
       if (el) el.textContent = new Date().toLocaleTimeString('cs-CZ');
     }, 1000);
 
-    console.log('Sofar Dashboard v3.1 loaded successfully (Lit compatible)');
+    console.log('Sofar Dashboard v3.2 loaded successfully (Aggressive)');
   }
 
   function connectEvents() {
+    // ... (zbytek connectEvents je stejný) ...
     try {
-      // Použijeme lokální EventSource
       const source = new EventSource('/events');
-      
       source.addEventListener('state', (e) => {
         try {
           const d = JSON.parse(e.data);
@@ -352,12 +324,10 @@
       });
 
       source.onerror = () => {
-        // Opakovaný pokus o připojení
         setTimeout(connectEvents, 5000);
       };
     } catch(err) {
       console.log('EventSource error:', err);
-      // Opakovaný pokus o připojení i v případě chyby EventSource
       setTimeout(connectEvents, 5000);
     }
   }
@@ -365,6 +335,7 @@
   const data = {};
   
   function updateValues(id, value) {
+    // ... (zbytek updateValues je stejný) ...
     if (value === undefined || value === null) return;
     const v = parseFloat(value);
     if (isNaN(v)) return;
@@ -432,10 +403,10 @@
     if (el) el.textContent = text;
   }
 
-  // Start
+  // Start se spustí HNED po načtení DOM
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', tryInit);
+    document.addEventListener('DOMContentLoaded', applyDashboard);
   } else {
-    tryInit();
+    applyDashboard();
   }
 })();
